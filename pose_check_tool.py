@@ -22,24 +22,51 @@ def get_angle(a, b, c):
     angle_rad = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
     return math.degrees(angle_rad)
 
-def check_limb(name, p1, joint, p2, head_ref, max_len_ratio, angle_range, image_cv, w, h):
+def check_limb(name, p1, joint, p2, head_ref, max_len_ratio, angle_range, image_cv, w, h, issues):
+    """Check a limb for abnormal length or bending.
+
+    Parameters
+    ----------
+    name : str
+        Name of the limb (e.g. "Left Arm").
+    p1, joint, p2 : landmark
+        Start point, joint point, and end point landmarks.
+    head_ref : float
+        Reference head size for length comparison.
+    max_len_ratio : float
+        Maximum allowed length ratio relative to head_ref.
+    angle_range : tuple
+        Acceptable joint angle range in degrees (min, max).
+    image_cv : ndarray
+        Image to draw on (OpenCV format).
+    w, h : int
+        Image width and height.
+    issues : list
+        List to append textual issues.
+    """
+
     dist = get_distance(p1, joint) + get_distance(joint, p2)
     ang = get_angle(p1, joint, p2)
+
     if dist > head_ref * max_len_ratio:
         cv2.line(image_cv, (int(p1.x * w), int(p1.y * h)), (int(p2.x * w), int(p2.y * h)), (0, 0, 255), 2)
         cv2.putText(image_cv, f"{name} too long", (int(p2.x * w), int(p2.y * h) - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        issues.append(f"{name} is too long")
+
     if ang < angle_range[0] or ang > angle_range[1]:
         px, py = int(joint.x * w), int(joint.y * h)
         cv2.putText(image_cv, f"{name} angle: {int(ang)}", (px, py - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
         cv2.circle(image_cv, (px, py), 6, (0, 0, 255), -1)
+        issues.append(f"{name} angle out of range: {int(ang)}°")
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert('RGB')
     image_np = np.array(image)
     image_rgb = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
     results = pose.process(image_rgb)
+    issues = []
 
     if results.pose_landmarks:
         landmarks = results.pose_landmarks.landmark
@@ -53,26 +80,33 @@ if uploaded_file:
                    landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
                    landmarks[mp_pose.PoseLandmark.LEFT_ELBOW],
                    landmarks[mp_pose.PoseLandmark.LEFT_WRIST],
-                   head_height, 3.0, (30, 180), image_np, w, h)
+                   head_height, 3.0, (30, 180), image_np, w, h, issues)
 
         check_limb("Right Arm",
                    landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
                    landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW],
                    landmarks[mp_pose.PoseLandmark.RIGHT_WRIST],
-                   head_height, 3.0, (30, 180), image_np, w, h)
+                   head_height, 3.0, (30, 180), image_np, w, h, issues)
 
         check_limb("Left Leg",
                    landmarks[mp_pose.PoseLandmark.LEFT_HIP],
                    landmarks[mp_pose.PoseLandmark.LEFT_KNEE],
                    landmarks[mp_pose.PoseLandmark.LEFT_ANKLE],
-                   head_height, 4.0, (30, 180), image_np, w, h)
+                   head_height, 4.0, (30, 180), image_np, w, h, issues)
 
         check_limb("Right Leg",
                    landmarks[mp_pose.PoseLandmark.RIGHT_HIP],
                    landmarks[mp_pose.PoseLandmark.RIGHT_KNEE],
                    landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE],
-                   head_height, 4.0, (30, 180), image_np, w, h)
+                   head_height, 4.0, (30, 180), image_np, w, h, issues)
 
         st.image(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB), caption="判定結果", use_column_width=True)
+
+        if issues:
+            st.markdown("### 指摘内容")
+            for msg in issues:
+                st.write(f"- {msg}")
+        else:
+            st.success("大きな問題は見つかりませんでした。")
     else:
         st.warning("人物を検出できませんでした。イラストのポーズや解像度を確認してください。")
