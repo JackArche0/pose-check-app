@@ -23,27 +23,7 @@ def get_angle(a, b, c):
     return math.degrees(angle_rad)
 
 def check_limb(name, p1, joint, p2, head_ref, max_len_ratio, angle_range, image_cv, w, h, issues):
-    """Check a limb for abnormal length or bending.
-
-    Parameters
-    ----------
-    name : str
-        Name of the limb (e.g. "Left Arm").
-    p1, joint, p2 : landmark
-        Start point, joint point, and end point landmarks.
-    head_ref : float
-        Reference head size for length comparison.
-    max_len_ratio : float
-        Maximum allowed length ratio relative to head_ref.
-    angle_range : tuple
-        Acceptable joint angle range in degrees (min, max).
-    image_cv : ndarray
-        Image to draw on (OpenCV format).
-    w, h : int
-        Image width and height.
-    issues : list
-        List to append textual issues.
-    """
+    """Check a limb for abnormal length or bending."""
 
     dist = get_distance(p1, joint) + get_distance(joint, p2)
     ang = get_angle(p1, joint, p2)
@@ -73,7 +53,7 @@ if uploaded_file:
         h, w, _ = image_np.shape
 
         head_top = landmarks[mp_pose.PoseLandmark.NOSE]
-        chin = landmarks[mp_pose.PoseLandmark.MOUTH_BOTTOM]
+        chin = landmarks[mp_pose.PoseLandmark.MOUTH_LEFT]
         head_height = get_distance(head_top, chin)
 
         check_limb("Left Arm",
